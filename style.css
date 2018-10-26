@@ -1,0 +1,47 @@
+/* CSS files add styling rules to your content */
+
+body {
+  margin: 1em;
+}
+svg {
+  margin: 1em auto;
+  display: block;
+  max-width: 80vw;
+  max-height: 80vh;
+}
+
+:root {
+    --col-a: black;
+    --col-b: white;
+}
+
+#board {
+    fill: #ccc;
+}
+
+#board * {
+    transition: fill 1s, stroke 1s;
+}
+
+#board.lines .polygon {
+    fill: white;
+}
+#board.curves .polygon.a {
+    fill: var(--col-a);
+}
+#board.curves .polygon.b {
+    fill: var(--col-b);
+}
+
+.truchet-curve.a {
+    fill: var(--col-b);
+}
+.truchet-curve.b {
+    fill: var(--col-a);
+}
+.truchet-line.a {
+    stroke: var(--col-a);
+}
+.truchet-line.b {
+    stroke: var(--col-b);
+}

@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <title>Truchet polygons</title>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+
+        <link rel="stylesheet" href="/style.css">
+
+    </head>  
+    <body>
+        <section>
+            <label for="tiling">Tiling:</label>
+            <select id="tiling"></select>
+            <label for="size">Scale:</label>
+            <input type="range" min="4" max="100" id="size" value="8">
+            <label for="mode">Mode:</label>
+            <select id="mode">
+                <option value="curves">Curves</option>
+                <option value="lines">Lines</option>
+            </select>
+            <label for="colours">Colours:</label>
+            <select id="colours">
+            </select>
+        </section>
+
+        <section>
+            <svg id="tiles-svg" xmlns="http://www.w3.org/2000/svg" viewBox="-100 -100 200 200" preserveAspectRatio="xMidYMid meet">
+                <defs></defs>
+                <g id="board">
+                </g>
+            </svg>
+        </section>
+
+        <section>
+            <p>
+                Each tile is a regular polygon with an even number of sides. The vertices are painted in alternating colours. The tiles are lined up so that the colours on every edge match.
+            </p>
+        </section>
+
+        <footer>
+            <p>Made by <a href="http://somethingorotherwhatever.com">Christian Lawson-Perfect</a></p>
+        </footer>
+
+        <script src="/script.babel.js" defer></script>
+    </body>
+</html>
