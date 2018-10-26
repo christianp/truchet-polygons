@@ -329,7 +329,7 @@ function spin_tile(tile) {
 
   tile.animating = true;
   t.removeAttribute('transform');
-  var dspin = 720 / n * Math.floor((n / 2 - 1) * Math.random());
+  var dspin = rand(0, 360, 720 / n);
   var nspin = spin + dspin;
   var scale = 1; //inradius(n)/outradius(n);
 
