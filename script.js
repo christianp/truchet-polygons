@@ -386,12 +386,12 @@ function svg_element(name,attr,content) {
 }
 
 function truchet(n,r,i1,i2,mode) {
-    switch(draw_mode) {
-        case 'curves':
-            return truchet_curve(n,r,i1,i2,mode);
-        case 'lines':
-            return truchet_line(n,r,i1,i2,mode);
-    }
+    const drawers = {
+        'curves': truchet_curve,
+        'lines': truchet_line,
+        'wedges': truchet_wedge
+    };
+    return drawers[draw_mode](n,r,i1,i2,mode);
 }
 
 function truchet_curve(n,r,i1,i2,mode) {
@@ -448,6 +448,26 @@ function truchet_line(n,r,i1,i2,mode) {
     return el;
 }
 
+function truchet_wedge(n,r,i1,i2,mode) {
+    const path = [];
+    const an = TWO_PI*(i1+.5)/n;
+    const ir = inradius(n);
+    const [x1,y1] = [ir*Math.cos(an), ir*Math.sin(an)];
+    path.push(`M ${dp(x1)} ${dp(y1)}`);
+    for(let i=i1+1;i<=i2;i++) {
+        const an = TWO_PI*i/n;
+        const [x2,y2] = [r*Math.cos(an),r*Math.sin(an)];
+        path.push(`L ${dp(x2)} ${dp(y2)}`);
+    }
+    const an2 = TWO_PI*(i2+.5)/n;
+    const [x2,y2] = [ir*Math.cos(an2), ir*Math.sin(an2)];
+    path.push(`L ${dp(x2)} ${dp(y2)}`);
+    path.push('z');
+    const d = path.join(' ');
+    const el = svg_element('path',{d,'data-poo': `${i1} ${i2}`, 'class':`truchet-wedge ${mode?'a':'b'}`});
+    return el;
+}
+
 function arcwidth(a) {
     const [from,to,mode] = a;
     const d = to-from;
@@ -479,3 +499,27 @@ function tile_signature(arcs,s,n) {
 }
 
 make_everything();
+
+
+function nest_truchet(arcs) {
+    arcs = arcs.map(a=>{
+        const [from,to] = a;
+        return [from,to,[]];
+    });
+    const out = [];
+    arcs = arcs.filter(a=>{
+        const [from,to,subs] = a;
+        const p = arcs.find(([f2,t2])=> from>f2 && to<t2 );
+        if(p) {
+            p[2].push(a);
+            return false;
+        } else {
+            return true;
+        }
+    });
+    arcs = arcs.map(([from,to,subs]) => {
+        return [from,to,subs.length>0 ? nest_truchet(subs) : subs];
+    });
+    arcs = arcs.sort((a,b)=>{a = a[0]; b = b[0]; return a>b ? 1 : a<b ? -1 : 0});
+    return arcs;
+}

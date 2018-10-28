@@ -608,13 +608,12 @@ function svg_element(name, attr, content) {
 }
 
 function truchet(n, r, i1, i2, mode) {
-  switch (draw_mode) {
-    case 'curves':
-      return truchet_curve(n, r, i1, i2, mode);
-
-    case 'lines':
-      return truchet_line(n, r, i1, i2, mode);
-  }
+  var drawers = {
+    'curves': truchet_curve,
+    'lines': truchet_line,
+    'wedges': truchet_wedge
+  };
+  return drawers[draw_mode](n, r, i1, i2, mode);
 }
 
 function truchet_curve(n, r, i1, i2, mode) {
@@ -697,6 +696,37 @@ function truchet_line(n, r, i1, i2, mode) {
   return el;
 }
 
+function truchet_wedge(n, r, i1, i2, mode) {
+  var path = [];
+  var an = TWO_PI * (i1 + .5) / n;
+  var ir = inradius(n);
+  var x1 = ir * Math.cos(an),
+      y1 = ir * Math.sin(an);
+  path.push("M ".concat(dp(x1), " ").concat(dp(y1)));
+
+  for (var i = i1 + 1; i <= i2; i++) {
+    var _an = TWO_PI * i / n;
+
+    var _x4 = r * Math.cos(_an),
+        _y4 = r * Math.sin(_an);
+
+    path.push("L ".concat(dp(_x4), " ").concat(dp(_y4)));
+  }
+
+  var an2 = TWO_PI * (i2 + .5) / n;
+  var x2 = ir * Math.cos(an2),
+      y2 = ir * Math.sin(an2);
+  path.push("L ".concat(dp(x2), " ").concat(dp(y2)));
+  path.push('z');
+  var d = path.join(' ');
+  var el = svg_element('path', {
+    d: d,
+    'data-poo': "".concat(i1, " ").concat(i2),
+    'class': "truchet-wedge ".concat(mode ? 'a' : 'b')
+  });
+  return el;
+}
+
 function arcwidth(a) {
   var _a = _slicedToArray(a, 3),
       from = _a[0],
@@ -746,4 +776,50 @@ function tile_signature(arcs, s, n) {
 }
 
 make_everything();
+
+function nest_truchet(arcs) {
+  arcs = arcs.map(function (a) {
+    var _a2 = _slicedToArray(a, 2),
+        from = _a2[0],
+        to = _a2[1];
+
+    return [from, to, []];
+  });
+  var out = [];
+  arcs = arcs.filter(function (a) {
+    var _a3 = _slicedToArray(a, 3),
+        from = _a3[0],
+        to = _a3[1],
+        subs = _a3[2];
+
+    var p = arcs.find(function (_ref11) {
+      var _ref12 = _slicedToArray(_ref11, 2),
+          f2 = _ref12[0],
+          t2 = _ref12[1];
+
+      return from > f2 && to < t2;
+    });
+
+    if (p) {
+      p[2].push(a);
+      return false;
+    } else {
+      return true;
+    }
+  });
+  arcs = arcs.map(function (_ref13) {
+    var _ref14 = _slicedToArray(_ref13, 3),
+        from = _ref14[0],
+        to = _ref14[1],
+        subs = _ref14[2];
+
+    return [from, to, subs.length > 0 ? nest_truchet(subs) : subs];
+  });
+  arcs = arcs.sort(function (a, b) {
+    a = a[0];
+    b = b[0];
+    return a > b ? 1 : a < b ? -1 : 0;
+  });
+  return arcs;
+}
 

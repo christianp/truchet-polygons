@@ -32,6 +32,12 @@ svg {
 #board.curves .polygon.b {
     fill: var(--col-b);
 }
+#board.wedges .polygon.a {
+    fill: var(--col-b);
+}
+#board.wedges .polygon.b {
+    fill: var(--col-a);
+}
 
 .truchet-curve.a {
     fill: var(--col-b);
@@ -44,4 +50,10 @@ svg {
 }
 .truchet-line.b {
     stroke: var(--col-b);
+}
+.truchet-wedge.a {
+    fill: var(--col-a);
+}
+.truchet-wedge.b {
+    fill: var(--col-b);
 }
