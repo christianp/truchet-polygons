@@ -23,6 +23,11 @@ svg {
     transition: fill 1s, stroke 1s;
 }
 
+.polygon {
+    stroke-width: 0.5;
+    stroke: var(--col-a);
+}
+
 #board.lines .polygon {
     fill: white;
 }

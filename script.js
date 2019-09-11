@@ -1,5 +1,6 @@
 const TWO_PI = Math.PI*2;
 let RADIUS = 16;
+let GAP = 0.1;
 let draw_mode = 'curves';
 
 const PLACE_DURATION = 300;
@@ -104,6 +105,7 @@ function choice(l) {
 
 function make_everything() {
     RADIUS = parseFloat(size_input.value);
+    GAP = parseFloat(gap_input.value);
     draw_mode = mode_select.value;
     board.setAttribute('class',draw_mode);
 
@@ -115,7 +117,7 @@ function make_everything() {
     defs.innerHTML = '';
     all_truchets = [];
 
-    for(let n=4;n<16;n+=2) {
+    for(let n=4;n<maxN;n+=2) {
         let truchets = generate_truchets(0,n,true).concat(generate_truchets(0,n,false));
         const spins = [];
         for(let i=0;i<n;i++) {
@@ -149,6 +151,8 @@ Object.keys(TILINGS).forEach(k=>{
 tiling_select.addEventListener('change',make_everything);
 const size_input = document.getElementById('size');
 size_input.addEventListener('input',make_everything);
+const gap_input = document.getElementById('gap');
+gap_input.addEventListener('input',make_everything);
 const mode_select = document.getElementById('mode');
 mode_select.addEventListener('input',make_everything);
 const colours_select = document.getElementById('colours');
@@ -240,7 +244,7 @@ function frame() {
     ot = t;
     requestAnimationFrame(frame);
 }
-requestAnimationFrame(frame);
+//requestAnimationFrame(frame);
 
 
 function apply_tiling(tiling,minx,miny,maxx,maxy) {
@@ -316,22 +320,101 @@ function make_svg_tiles() {
     let i = 0;
     const defs = svg.querySelector('defs');
     all_truchets.forEach(({n,truchets}) => {
-        const R = outradius(n);
         const svg_tiles = tile_ids[n] = [];
         truchets.forEach((arcs,j)=>{
             const mode = arcs[0][2];
-            arcs = arcs.sort((a,b)=>{const da = arcwidth(a); const db = arcwidth(b); return da>db ? -1 : db>da ? 1 : 0});
-            const g = polygon(n,R,mode);
+            const g = make_better_tile(arcs,j,n,mode);
             const id = `tile-${n}-${j}`;
             g.setAttribute('id',id);
-            arcs.forEach(([a,b,mode])=>{
-                g.appendChild(truchet(n,R,a,b,mode));
-            });
             defs.appendChild(g);
             i += 1;
             svg_tiles.push(id);
         })
     });
+}
+
+function make_better_tile(arcs,j,n,mode) {
+
+    const R = outradius(n) - GAP*outradius(4);
+    const g = polygon(n,R,false);
+
+    const seen = {};
+    const maps = {};
+    for(let [from,to,mode] of arcs) {
+        maps[from] = to;
+        maps[to] = from;
+    }
+    // coords of vertex v
+    function vertex(v) {
+        const an = v/n*TWO_PI;
+        const [x,y] = [Math.cos(an), Math.sin(an)];
+        return [R*x,R*y];
+    }
+    // coords of middle of edge between vertex v and v+1
+    function middle(v) {
+        const [x1,y1] = vertex(v);
+        const [x2,y2] = vertex(v+1);
+        return [(x1+x2)/2, (y1+y2)/2];
+    }
+
+    const dots = [];
+    for(let i=0;i<n;i+=2) {
+        if(seen[i]) {
+            continue;
+        }
+        const path = [];
+        const visited = [];
+        const start = i;
+        seen[start] = true;
+        let pos = start;
+        let [x1,y1] = middle(start); // middle of beginning edge
+        path.push(`M ${dp(x1)} ${dp(y1)}`);
+        let opos = -1;
+        let goes = 0;
+        while(opos!=start) {
+            goes += 1;
+            if(goes>n) {
+                throw(new Error("ARG"));
+            }
+            opos = pos;
+            pos = maps[opos];
+            visited.push(opos);
+            visited.push(pos);
+            seen[pos] = true;
+            let d = pos - opos;
+            if(d<0) {
+                d += n;
+            }
+            const [x2,y2] = middle(pos); // middle of end edge
+            const straight = d==0 || 2*d==n;
+
+            if(straight) {
+                path.push(`L ${dp(x2)} ${dp(y2)}`);
+            } else {
+                const exterior = 2*Math.PI/n;
+                const interior = Math.PI - exterior;
+                const ad = Math.abs(2*d>n ? d-n : d);
+                const an = interior - (ad-1)*exterior;
+                const dx = Math.sin(ad/n*TWO_PI);
+                const aR = inradius(n)*dx/(1-Math.cos(an));
+                path.push(`A ${dp(aR)} ${dp(aR)} 0 0 ${2*d>n ? 1 : 0} ${dp(x2)} ${dp(y2)}`);
+
+            }
+            const [x3,y3] = vertex(pos+1);
+            const [x4,y4] = middle(pos+1);
+            path.push(`L ${dp(x3)} ${dp(y3)}`);
+            path.push(`L ${dp(x4)} ${dp(y4)}`);
+            [x1,y1] = [x4,y4];
+            opos = pos = (pos + 1)%n;
+            seen[opos] = true;
+        }
+        const el = svg_element('path',{d:path.join(' '), 'class':'truchet-curve b','data-visited': visited.join(' ')});
+        g.appendChild(el);
+    }
+    for(let dot of dots) {
+        g.appendChild(dot);
+    }
+    return g;
 }
 
 function generate_truchets(from,to,mode) {
