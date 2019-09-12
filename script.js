@@ -3,6 +3,9 @@ let RADIUS = 16;
 let GAP = 0.1;
 let draw_mode = 'curves';
 
+const SCALE = 1;
+const [MINX,MINY,MAXX,MAXY] = [-SCALE/2*210,-SCALE/2*297,SCALE*210,SCALE*297];
+
 const PLACE_DURATION = 300;
 const DIE_RATE = 1/1000;
 const DIE_DURATION = 300;
@@ -104,12 +107,13 @@ function choice(l) {
 }
 
 function make_everything() {
-    RADIUS = parseFloat(size_input.value);
-    GAP = parseFloat(gap_input.value);
-    draw_mode = mode_select.value;
+    save_options();
+    RADIUS = options['size'];
+    GAP = options['gap'];
+    draw_mode = 'curves';
     board.setAttribute('class',draw_mode);
 
-    change_colours();
+    set_colours();
 
     TILINGS = make_tilings();
 
@@ -140,6 +144,64 @@ function make_everything() {
 
     make_svg_tiles();
     change_tiling();
+//    update_link();
+}
+const inputs = [
+    {label: 'Size', id: 'size', type: 'range', min: 4, max: 200, value: 60},
+    {label: 'Gap', id: 'gap', type: 'range', min:0, max: 1, value: 0.1, step: 0.01},
+    {label: 'Colour 1', id: 'colour1', type: 'color', value: '#000000'},
+    {label: 'Colour 2', id: 'colour2', type: 'color', value: '#ffffff'},
+    {label: 'Outline colour', id: 'outline', type: 'color', value: '#ffffff'},
+    {label: 'Outline width', id: 'outlinewidth', type: 'range', min: 0, max: 10, step: 0.01, value: 1},
+    {label: 'Line x', id: 'linex', type: 'range', min: 0, max: 2, value: 0.1, step: 0.01},
+    {label: 'Line y', id: 'liney', type: 'range', min: 0, max: 2, value: 1.1, step: 0.01},
+    {label: 'Fade power', id: 'fadepower', type: 'range', min: 0, max: 2, value: 1, step: 0.01},
+    {label: 'Angle', id: 'angle', type: 'range', min: -Math.PI/3, max: Math.PI/3, step: 0.01, value: 0},
+];
+
+const options = {};
+const options_section = document.getElementById('options');
+for(let def of inputs) {
+    const span = html_element('span',{'class':'option'});
+    const label = html_element('label',{'for':def.id},`${def.label}: `);
+    const input = html_element('input',def);
+    span.appendChild(label);
+    span.appendChild(input);
+    options_section.appendChild(span);
+    input.addEventListener('input',e=>{
+        options[def.id] = input.value;
+        if(def.type=='color') {
+            set_colours();
+        } else {
+            debounce_remake();
+        }
+    });
+    options[def.id] = input.value;
+    def.input = input;
+}
+
+let timeout = null;
+function debounce_remake() {
+    if(timeout) {
+        clearTimeout(timeout);
+    }
+    timeout = setTimeout(make_everything,100);
+}
+
+const option_comment = document.createComment('');
+svg.appendChild(option_comment);
+function save_options() {
+    localStorage.setItem('truchet-options',JSON.stringify(options));
+    option_comment.textContent = JSON.stringify(options);
+}
+function restore_options() {
+    const saved_options = localStorage.getItem('truchet-options');
+    if(saved_options) {
+        Object.assign(options,JSON.parse(saved_options));
+        for(let def of inputs) {
+            def.input.value = options[def.id];
+        }
+    }
 }
 const tiling_select = document.getElementById('tiling');
 Object.keys(TILINGS).forEach(k=>{
@@ -148,13 +210,12 @@ Object.keys(TILINGS).forEach(k=>{
     o.textContent = k;
     tiling_select.appendChild(o);
 });
-tiling_select.addEventListener('change',make_everything);
-const size_input = document.getElementById('size');
-size_input.addEventListener('input',make_everything);
-const gap_input = document.getElementById('gap');
-gap_input.addEventListener('input',make_everything);
-const mode_select = document.getElementById('mode');
-mode_select.addEventListener('input',make_everything);
+tiling_select.addEventListener('change',e => {
+    options['tiling'] = tiling_select.value;
+    make_everything();
+});
+options['tiling'] = tiling_select.value;
+
 const colours_select = document.getElementById('colours');
 COLOUR_PAIRS.forEach((k,i)=>{
     const o = document.createElement('option');
@@ -162,18 +223,46 @@ COLOUR_PAIRS.forEach((k,i)=>{
     o.textContent = k.join(' ');
     colours_select.appendChild(o);
 });
-colours_select.addEventListener('change',change_colours);
-function change_colours() {
+colours_select.addEventListener('change',select_colour_pair);
+function select_colour_pair() {
     const [col1,col2] = COLOUR_PAIRS[colours_select.value];
-    document.documentElement.style.setProperty('--col-a',col1);
-    document.documentElement.style.setProperty('--col-b',col2);
+    document.getElementById('colour1').value = col1;
+    document.getElementById('colour2').value = col2;
+}
+
+function set_colours() {
+    document.documentElement.style.setProperty('--col-a',options['colour1']);
+    document.documentElement.style.setProperty('--col-b',options['colour2']);
+    document.documentElement.style.setProperty('--col-outline',options['outline']);
+    document.documentElement.style.setProperty('--width-outline',options['outlinewidth']);
+
+//    update_link();
+}
+
+document.getElementById('link').addEventListener('click',function(e) {
+    update_link();
+});
+function update_link() {
+    const dsvg = svg.cloneNode(true);
+    document.body.appendChild(dsvg);
+    const attrs = ['fill','stroke','stroke-linejoin','stroke-width'];
+    for(let p of dsvg.querySelectorAll('path')) {
+        const s = getComputedStyle(p);
+        for(let a of attrs) {
+            p.setAttribute(a,s[a]);
+        }
+    }
+    const f = new File([dsvg.outerHTML],`truchet-polygons-${new Date()-0}.svg`,{type:'image/svg+xml'});
+    const url = URL.createObjectURL(f);
+    document.getElementById('link').setAttribute('href',url);
+    document.body.removeChild(dsvg);
 }
 
 function change_tiling() {
     placed_tiles = [];
-    const tiling = tiling_select.value;
+    const tiling = options['tiling'];
     const s = new Date();
-    apply_tiling(TILINGS[tiling],-100,-100,100,100)
+    apply_tiling(TILINGS[tiling],MINX,MINY,MAXX,MAXY)
     const e = new Date();
 }
 
@@ -248,8 +337,22 @@ function frame() {
 
 
 function apply_tiling(tiling,minx,miny,maxx,maxy) {
+    const [vw,vh] = [MAXX-MINX, MAXY-MINY];
+    svg.setAttribute('viewBox',`${minx} ${miny} ${maxx} ${maxy}`);
+    const bg = svg.querySelector('#bg');
+    bg.setAttribute('x',minx);
+    bg.setAttribute('y',miny);
+    bg.setAttribute('width',maxx-minx);
+    bg.setAttribute('height',maxy-miny);
     board.innerHTML = '';
     const {drx,dry,dcx,dcy,tiles} = tiling;
+
+    function project(x,y) {
+        const an = options['angle'];
+        const [c,s] = [Math.cos(an),Math.sin(an)];
+        const [px,py] = [x*c - y*s, x*s + y*c];
+        return [px, py];
+    }
     for(let d=0;;d++) {
         let did = 0;
         for(let x=0;x<=d;x++) {
@@ -259,17 +362,20 @@ function apply_tiling(tiling,minx,miny,maxx,maxy) {
             x!=0 && coords.push([-x,y]);
             x!=0 && y!=0 && coords.push([-x,-y]);
             coords.forEach(([x,y])=>{
-                const px = x*drx+y*dcx;
-                const py = x*dry+y*dcy;
-                if(px+drx>=minx && px-drx<=maxx && py+dcy>=miny && py-dcy<=maxy) {
-                    did+=1;
-                    tiles.forEach(def=>{
-                        const {n,m,a,r} = def;
-                        const dx = Math.cos(a)*m;
-                        const dy = Math.sin(a)*m;
-                        place(random_tile(n),px+dx,py+dy,n,r);
-                    });
-                }
+                const [px,py] = [x*drx+y*dcx, x*dry+y*dcy];
+                tiles.forEach(def=>{
+                    const {n,m,a,r} = def;
+                    const dx = Math.cos(a)*m;
+                    const dy = Math.sin(a)*m;
+                    const [rx,ry] = [px+dx-MINX, py+dy-MINY];
+                    const [w,h] = [MAXX-MINX, MAXY-MINY];
+                    const scale = Math.min(Math.pow(Math.max(0,options['linex']*rx/w+options['liney']*ry/h),options['fadepower']),1);
+                    const [x,y] = project(px+dx,py+dy);
+                    if(x+drx>=minx && x-drx<=maxx && y+dcy>=miny && y-dcy<=maxy) {
+                        did+=1;
+                        place(random_tile(n),x,y,n,r+options['angle']*180/Math.PI,scale);
+                    }
+                });
             });
         }
         if(!did) {
@@ -278,24 +384,17 @@ function apply_tiling(tiling,minx,miny,maxx,maxy) {
     }
 }
 
-function place(t,x,y,n,r,fresh=true) {
+function place(t,x,y,n,r,scale) {
     const spin = rand(0,360,720/n);
     const g = svg_element('g',{transform:`translate(${x},${y}) rotate(${r})`});
-    g.appendChild(t);
     board.appendChild(g);
+    g.appendChild(t);
     const tile = {el:g,t,x,y,n,r,spin,animating:false};
     t.setAttribute('data-spin',spin);
-    if(!fresh) {
-        tile.animating = true;
-        const pop = t.animate([{transform:`scale(0) rotate(${spin}deg)`},{transform:`scale(1) rotate(${spin}deg)`}],{duration:PLACE_DURATION,easing:'ease-out'});
-        pop.onfinish = function() {
-            tile.animating = false;
-        }
-    }
-    t.style.transform = `rotate(${spin}deg)`;
+    t.setAttribute('transform',`rotate(${spin}) scale(${scale})`);
     placed_tiles.push(tile);
     g.addEventListener('click',function() {
-        spin_tile(tile);
+//        spin_tile(tile);
     });
 }
 
@@ -337,6 +436,7 @@ function make_better_tile(arcs,j,n,mode) {
 
     const R = outradius(n) - GAP*outradius(4);
     const g = polygon(n,R,false);
+    const g_arcs = g.querySelector('.arcs');
 
     const seen = {};
     const maps = {};
@@ -357,7 +457,6 @@ function make_better_tile(arcs,j,n,mode) {
         return [(x1+x2)/2, (y1+y2)/2];
     }
 
-    const dots = [];
     for(let i=0;i<n;i+=2) {
         if(seen[i]) {
             continue;
@@ -409,10 +508,7 @@ function make_better_tile(arcs,j,n,mode) {
             seen[opos] = true;
         }
         const el = svg_element('path',{d:path.join(' '), 'class':'truchet-curve b','data-visited': visited.join(' ')});
-        g.appendChild(el);
-    }
-    for(let dot of dots) {
-        g.appendChild(dot);
+        g_arcs.appendChild(el);
     }
     return g;
 }
@@ -452,9 +548,24 @@ function polygon(n,r,mode) {
     }
     path.push('z');
     const g = svg_element('g',{'class': `polygon ${mode?'a':'b'}`,'data-n':n});
-    const p = svg_element('path',{d:path.join(' ')});
-    g.appendChild(p);
+    const background = svg_element('path',{'class':'background', d:path.join(' ')});
+    g.appendChild(background);
+    const arcs = svg_element('g',{'class':'arcs'});
+    g.appendChild(arcs);
+    const outline = svg_element('path',{'class':'outline', d:path.join(' ')});
+    g.appendChild(outline);
     return g;
+}
+
+function html_element(name,attr,content) {
+    const e = document.createElement(name);
+    if(attr) {
+        Object.entries(attr).forEach(([key,value])=>e.setAttribute(key,value));
+    }
+    if(content) {
+        e.innerHTML = content;
+    }
+    return e;
 }
 
 function svg_element(name,attr,content) {
@@ -581,6 +692,7 @@ function tile_signature(arcs,s,n) {
     return JSON.stringify(arcs);
 }
 
+restore_options();
 make_everything();
 
 

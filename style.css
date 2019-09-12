@@ -10,6 +10,13 @@ svg {
   max-height: 80vh;
 }
 
+#options {
+    display: grid;
+    grid-auto-flow: row;
+    grid-gap: 0.5rem 1rem;
+    grid-template-columns: repeat(4,1fr);
+}
+
 :root {
     --col-a: black;
     --col-b: white;
@@ -20,12 +27,14 @@ svg {
 }
 
 #board * {
-    transition: fill 1s, stroke 1s;
+    transition: fill 1s, stroke 1s, stroke-width 1s;
 }
 
-.polygon {
-    stroke-width: 0.5;
-    stroke: var(--col-a);
+.polygon .outline {
+    fill: none;
+    stroke-width: var(--width-outline);
+    stroke: var(--col-outline);
+    stroke-linejoin: round;
 }
 
 #board.lines .polygon {
